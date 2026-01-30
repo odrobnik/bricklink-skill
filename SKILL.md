@@ -36,6 +36,8 @@ Read-only:
 - `bricklink.py get-order-feedback <order_id>`
 - `bricklink.py get-notifications`
 - `bricklink.py get-categories`
+- `bricklink.py get-colors`
+- `bricklink.py get-color <color_id>`
 - `bricklink.py get-category <category_id>`
 - `bricklink.py get-inventories [--item-type ...] [--status ...] [--category-id ...] [--color-id ...]`
 - `bricklink.py get-inventory <inventory_id>`

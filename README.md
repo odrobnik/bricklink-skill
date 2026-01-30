@@ -15,6 +15,7 @@ python3 scripts/bricklink.py --config ~/clawd/bricklink/config.json get-order 12
 python3 scripts/bricklink.py --config ~/clawd/bricklink/config.json get-notifications
 python3 scripts/bricklink.py --config ~/clawd/bricklink/config.json get-categories
 python3 scripts/bricklink.py --config ~/clawd/bricklink/config.json get-category 5
+python3 scripts/bricklink.py --config ~/clawd/bricklink/config.json get-color 1
 python3 scripts/bricklink.py --config ~/clawd/bricklink/config.json get-inventories
 python3 scripts/bricklink.py --config ~/clawd/bricklink/config.json get-inventory 987654
 

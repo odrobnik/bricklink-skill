@@ -727,6 +727,26 @@ def cmd_get_categories(args) -> int:
     return 0
 
 
+def cmd_get_colors(args) -> int:
+    """GET /colors"""
+    creds = load_creds(args)
+    base = (args.base or API_BASE_DEFAULT).rstrip("/")
+    url = f"{base}/colors"
+    data = api_call(creds, "GET", url)
+    print(json.dumps(data, ensure_ascii=False, indent=2))
+    return 0
+
+
+def cmd_get_color(args) -> int:
+    """GET /colors/{color_id}"""
+    creds = load_creds(args)
+    base = (args.base or API_BASE_DEFAULT).rstrip("/")
+    url = f"{base}/colors/{int(args.color_id)}"
+    data = api_call(creds, "GET", url)
+    print(json.dumps(data, ensure_ascii=False, indent=2))
+    return 0
+
+
 def cmd_get_category(args) -> int:
     """GET /categories/{category_id}"""
     creds = load_creds(args)
@@ -972,6 +992,13 @@ def main() -> int:
 
     p = sub.add_parser("get-categories", help="GET /categories")
     p.set_defaults(func=cmd_get_categories)
+
+    p = sub.add_parser("get-colors", help="GET /colors")
+    p.set_defaults(func=cmd_get_colors)
+
+    p = sub.add_parser("get-color", help="GET /colors/{color_id}")
+    p.add_argument("color_id", type=int)
+    p.set_defaults(func=cmd_get_color)
 
     p = sub.add_parser("get-category", help="GET /categories/{category_id}")
     p.add_argument("category_id", type=int)
