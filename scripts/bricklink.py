@@ -703,6 +703,16 @@ def cmd_get_order_feedback(args) -> int:
     return 0
 
 
+def cmd_get_notifications(args) -> int:
+    """GET /notifications"""
+    creds = load_creds(args)
+    base = (args.base or API_BASE_DEFAULT).rstrip("/")
+    url = f"{base}/notifications"
+    data = api_call(creds, "GET", url)
+    print(json.dumps(data, ensure_ascii=False, indent=2))
+    return 0
+
+
 def cmd_update_order(args) -> int:
     if not args.yes:
         raise SystemExit("Refusing to modify an order without --yes")
@@ -932,6 +942,9 @@ def main() -> int:
     p = sub.add_parser("get-order-feedback", help="GET /orders/{order_id}/feedback")
     p.add_argument("order_id", type=int)
     p.set_defaults(func=cmd_get_order_feedback)
+
+    p = sub.add_parser("get-notifications", help="GET /notifications")
+    p.set_defaults(func=cmd_get_notifications)
 
     p = sub.add_parser("update-order", help="PUT /orders/{order_id} (update tracking, remarks, costs, filed)")
     p.add_argument("order_id", type=int)
