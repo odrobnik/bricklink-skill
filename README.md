@@ -13,6 +13,8 @@ Helper CLI for the BrickLink Store API (OAuth 1.0). Covers orders, store invento
 python3 scripts/bricklink.py --config ~/clawd/bricklink/config.json get-orders
 python3 scripts/bricklink.py --config ~/clawd/bricklink/config.json get-order 123456
 python3 scripts/bricklink.py --config ~/clawd/bricklink/config.json get-notifications
+python3 scripts/bricklink.py --config ~/clawd/bricklink/config.json get-categories
+python3 scripts/bricklink.py --config ~/clawd/bricklink/config.json get-category 5
 python3 scripts/bricklink.py --config ~/clawd/bricklink/config.json get-inventories
 python3 scripts/bricklink.py --config ~/clawd/bricklink/config.json get-inventory 987654
 

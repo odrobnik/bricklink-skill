@@ -717,6 +717,26 @@ def cmd_get_notifications(args) -> int:
     return 0
 
 
+def cmd_get_categories(args) -> int:
+    """GET /categories"""
+    creds = load_creds(args)
+    base = (args.base or API_BASE_DEFAULT).rstrip("/")
+    url = f"{base}/categories"
+    data = api_call(creds, "GET", url)
+    print(json.dumps(data, ensure_ascii=False, indent=2))
+    return 0
+
+
+def cmd_get_category(args) -> int:
+    """GET /categories/{category_id}"""
+    creds = load_creds(args)
+    base = (args.base or API_BASE_DEFAULT).rstrip("/")
+    url = f"{base}/categories/{int(args.category_id)}"
+    data = api_call(creds, "GET", url)
+    print(json.dumps(data, ensure_ascii=False, indent=2))
+    return 0
+
+
 def cmd_update_order(args) -> int:
     if not args.yes:
         raise SystemExit("Refusing to modify an order without --yes")
@@ -949,6 +969,13 @@ def main() -> int:
 
     p = sub.add_parser("get-notifications", help="GET /notifications")
     p.set_defaults(func=cmd_get_notifications)
+
+    p = sub.add_parser("get-categories", help="GET /categories")
+    p.set_defaults(func=cmd_get_categories)
+
+    p = sub.add_parser("get-category", help="GET /categories/{category_id}")
+    p.add_argument("category_id", type=int)
+    p.set_defaults(func=cmd_get_category)
 
     p = sub.add_parser("update-order", help="PUT /orders/{order_id} (update tracking, remarks, costs, filed)")
     p.add_argument("order_id", type=int)
