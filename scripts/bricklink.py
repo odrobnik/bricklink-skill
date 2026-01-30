@@ -707,6 +707,91 @@ def cmd_get_order_feedback(args) -> int:
     return 0
 
 
+def cmd_get_feedback(args) -> int:
+    """GET /feedback"""
+    creds = load_creds(args)
+    base = (args.base or API_BASE_DEFAULT).rstrip("/")
+
+    params: dict[str, str] = {}
+    if args.direction:
+        params["direction"] = args.direction
+
+    qs = urllib.parse.urlencode(params) if params else ""
+    url = f"{base}/feedback" + (f"?{qs}" if qs else "")
+    data = api_call(creds, "GET", url)
+    print(json.dumps(data, ensure_ascii=False, indent=2))
+    return 0
+
+
+def cmd_get_feedback_item(args) -> int:
+    """GET /feedback/{feedback_id}"""
+    creds = load_creds(args)
+    base = (args.base or API_BASE_DEFAULT).rstrip("/")
+    url = f"{base}/feedback/{int(args.feedback_id)}"
+    data = api_call(creds, "GET", url)
+    print(json.dumps(data, ensure_ascii=False, indent=2))
+    return 0
+
+
+def cmd_post_feedback(args) -> int:
+    if not args.yes:
+        raise SystemExit("Refusing to post feedback without --yes")
+
+    creds = load_creds(args)
+    base = (args.base or API_BASE_DEFAULT).rstrip("/")
+
+    body: dict[str, Any] = {}
+    if args.json:
+        body = _load_json_file(args.json)
+        if not isinstance(body, dict):
+            raise SystemExit("--json must contain a JSON object")
+
+    if args.order_id is not None:
+        body["order_id"] = int(args.order_id)
+    if args.rating is not None:
+        body["rating"] = int(args.rating)
+    if args.comment is not None:
+        body["comment"] = str(args.comment)
+
+    if not body:
+        raise SystemExit("Feedback body is empty. Provide --json or --order-id/--rating/--comment.")
+    if "order_id" not in body or "rating" not in body:
+        raise SystemExit("Feedback requires order_id and rating (use --order-id and --rating, or include in --json).")
+
+    url = f"{base}/feedback"
+    data = api_call(creds, "POST", url, body_json=body)
+    print(json.dumps(data, ensure_ascii=False, indent=2))
+    return 0
+
+
+def cmd_reply_feedback(args) -> int:
+    if not args.yes:
+        raise SystemExit("Refusing to reply to feedback without --yes")
+
+    creds = load_creds(args)
+    base = (args.base or API_BASE_DEFAULT).rstrip("/")
+
+    body: dict[str, Any] = {}
+    if args.json:
+        body = _load_json_file(args.json)
+        if not isinstance(body, dict):
+            raise SystemExit("--json must contain a JSON object")
+
+    if args.reply is not None:
+        body["reply"] = str(args.reply)
+
+    if not body:
+        raise SystemExit("Reply body is empty. Provide --json or --reply.")
+    if "reply" not in body:
+        raise SystemExit("Reply requires reply text (use --reply, or include in --json).")
+
+    fid = int(args.feedback_id)
+    url = f"{base}/feedback/{fid}/reply"
+    data = api_call(creds, "POST", url, body_json=body)
+    print(json.dumps(data, ensure_ascii=False, indent=2))
+    return 0
+
+
 def cmd_get_notifications(args) -> int:
     """GET /notifications"""
     creds = load_creds(args)
@@ -987,6 +1072,14 @@ def main() -> int:
     p.add_argument("order_id", type=int)
     p.set_defaults(func=cmd_get_order_feedback)
 
+    p = sub.add_parser("get-feedback", help="GET /feedback")
+    p.add_argument("--direction", choices=["in", "out"], default=None)
+    p.set_defaults(func=cmd_get_feedback)
+
+    p = sub.add_parser("get-feedback-item", help="GET /feedback/{feedback_id}")
+    p.add_argument("feedback_id", type=int)
+    p.set_defaults(func=cmd_get_feedback_item)
+
     p = sub.add_parser("get-notifications", help="GET /notifications")
     p.set_defaults(func=cmd_get_notifications)
 
@@ -1038,6 +1131,21 @@ def main() -> int:
     p.add_argument("--mail-me", action="store_true", help="CC yourself")
     p.add_argument("--yes", action="store_true", help="Actually send the email")
     p.set_defaults(func=cmd_send_drive_thru)
+
+    p = sub.add_parser("post-feedback", help="POST /feedback")
+    p.add_argument("--yes", action="store_true", help="Actually post feedback")
+    p.add_argument("--json", default=None, help="Path to JSON body")
+    p.add_argument("--order-id", type=int, default=None)
+    p.add_argument("--rating", type=int, choices=[0, 1, 2], default=None)
+    p.add_argument("--comment", default=None)
+    p.set_defaults(func=cmd_post_feedback)
+
+    p = sub.add_parser("reply-feedback", help="POST /feedback/{feedback_id}/reply")
+    p.add_argument("feedback_id", type=int)
+    p.add_argument("--yes", action="store_true", help="Actually post the reply")
+    p.add_argument("--json", default=None, help="Path to JSON body")
+    p.add_argument("--reply", default=None)
+    p.set_defaults(func=cmd_reply_feedback)
 
     p = sub.add_parser("order-detail-html", help="Fetch order + items and render an HTML list similar to orderDetail.asp")
     p.add_argument("order_id", type=int)

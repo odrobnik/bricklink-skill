@@ -34,6 +34,8 @@ Read-only:
 - `bricklink.py get-order-items <order_id>`
 - `bricklink.py get-order-messages <order_id>`
 - `bricklink.py get-order-feedback <order_id>`
+- `bricklink.py get-feedback [--direction in|out]`
+- `bricklink.py get-feedback-item <feedback_id>`
 - `bricklink.py get-notifications`
 - `bricklink.py get-categories`
 - `bricklink.py get-colors`
@@ -52,6 +54,8 @@ Mutating (require `--yes`):
 - `bricklink.py update-order-status <order_id> <status> --yes`
 - `bricklink.py update-payment-status <order_id> <payment_status> --yes`
 - `bricklink.py send-drive-thru <order_id> [--mail-me] --yes`
+- `bricklink.py post-feedback --yes [--json body.json] [--order-id N --rating 0|1|2 --comment ...]`
+- `bricklink.py reply-feedback <feedback_id> --yes [--json body.json] [--reply ...]`
 
 Utilities:
 - `bricklink.py order-detail-html <order_id> [--out path] [--inline-images]`
