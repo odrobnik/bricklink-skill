@@ -18,7 +18,7 @@ Use `scripts/bricklink.py`.
 
 ### Option B: local config JSON (recommended for convenience)
 
-Create `~/clawd/bricklink/config.json` (example in `~/clawd/bricklink/config.json.example`) and run with:
+Create `~/clawd/bricklink/config.json` (example in `~/clawd/bricklink/config.json.example`). If that file exists, `--config` is optional; otherwise run with:
 
 - `bricklink.py --config ~/clawd/bricklink/config.json ...`
 

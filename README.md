@@ -6,7 +6,7 @@ Helper CLI for the BrickLink Store API (OAuth 1.0). Covers orders, store invento
 1. Create a BrickLink API consumer key/secret.
 2. Create a config file (see `bricklink/config.json.example` in repo root) with keys:
    - `consumer_key`, `consumer_secret`, `token_value`, `token_secret`
-3. Run the CLI with `--config` pointing at that file.
+3. Run the CLI with `--config` pointing at that file (optional if `~/clawd/bricklink/config.json` exists).
 
 ## Usage
 ```bash

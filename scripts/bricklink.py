@@ -177,6 +177,10 @@ def _load_creds_from_json(path: str) -> Creds | None:
 def load_creds(args) -> Creds:
     # 1) Optional: config JSON
     cfg = getattr(args, "config", None) or _env("BRICKLINK_CONFIG")
+    if not cfg:
+        default_cfg = os.path.expanduser("~/clawd/bricklink/config.json")
+        if os.path.exists(default_cfg):
+            cfg = default_cfg
     if cfg:
         c = _load_creds_from_json(cfg)
         if c:
