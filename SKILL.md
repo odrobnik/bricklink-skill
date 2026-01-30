@@ -1,6 +1,6 @@
 ---
 name: bricklink
-description: BrickLink Store API (OAuth 1.0) helper. Use when calling BrickLink API endpoints for orders, store inventory, or catalog: list/fetch orders, order items/messages/feedback, list/fetch store inventories, fetch catalog items, subsets/supersets, price guide, and known colors (GET /orders..., GET /inventories..., GET /items/{type}/{no}...).
+description: BrickLink Store API (OAuth 1.0) helper/CLI. Covers orders, store inventory (read + write), catalog, categories, colors, feedback, and push notifications.
 ---
 
 # BrickLink
