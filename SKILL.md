@@ -56,6 +56,10 @@ Mutating (require `--yes`):
 - `bricklink.py send-drive-thru <order_id> [--mail-me] --yes`
 - `bricklink.py post-feedback --yes [--json body.json] [--order-id N --rating 0|1|2 --comment ...]`
 - `bricklink.py reply-feedback <feedback_id> --yes [--json body.json] [--reply ...]`
+- `bricklink.py create-inventory --yes [--json body.json] [--item-type ... --item-no ... --color-id N --quantity N --unit-price ... --new-or-used N|U ...]`
+- `bricklink.py create-inventories --yes [--json body.json] [--item-type ... --item-no ... --color-id N --quantity N --unit-price ... --new-or-used N|U ...]`
+- `bricklink.py update-inventory <inventory_id> --yes [--json body.json] [--quantity N --unit-price ... --new-or-used N|U --remarks ...]`
+- `bricklink.py delete-inventory <inventory_id> --yes`
 
 Utilities:
 - `bricklink.py order-detail-html <order_id> [--out path] [--inline-images]`

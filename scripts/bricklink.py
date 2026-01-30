@@ -495,6 +495,87 @@ def _load_json_file(path: str) -> Any:
     with open(path, "r", encoding="utf-8") as f:
         return json.load(f)
 
+def _apply_inventory_flags(body: dict[str, Any], args, *, include_item: bool = True) -> dict[str, Any]:
+    if include_item:
+        item: dict[str, Any] = body.get("item") if isinstance(body.get("item"), dict) else {}
+        if args.item_type is not None:
+            item["type"] = str(args.item_type)
+        if args.item_no is not None:
+            item["no"] = str(args.item_no)
+        if item:
+            body["item"] = item
+
+    if args.color_id is not None:
+        body["color_id"] = int(args.color_id)
+    if args.quantity is not None:
+        body["quantity"] = int(args.quantity)
+    if args.unit_price is not None:
+        body["unit_price"] = str(args.unit_price)
+    if args.new_or_used is not None:
+        body["new_or_used"] = str(args.new_or_used)
+    if args.completeness is not None:
+        body["completeness"] = str(args.completeness)
+    if args.description is not None:
+        body["description"] = str(args.description)
+    if args.remarks is not None:
+        body["remarks"] = str(args.remarks)
+    if args.bulk is not None:
+        body["bulk"] = bool(args.bulk)
+    if args.is_retain is not None:
+        body["is_retain"] = bool(args.is_retain)
+    if args.is_stock_room is not None:
+        body["is_stock_room"] = bool(args.is_stock_room)
+    if args.stock_room_id is not None:
+        body["stock_room_id"] = int(args.stock_room_id)
+    if args.my_cost is not None:
+        body["my_cost"] = str(args.my_cost)
+    if args.sale_rate is not None:
+        body["sale_rate"] = str(args.sale_rate)
+
+    return body
+
+
+def _validate_inventory_required(body: dict[str, Any], *, index: int | None = None) -> None:
+    missing: list[str] = []
+    item = body.get("item")
+    if not isinstance(item, dict):
+        missing.append("item")
+        item = {}
+    if "type" not in item:
+        missing.append("item.type")
+    if "no" not in item:
+        missing.append("item.no")
+    if "color_id" not in body:
+        missing.append("color_id")
+    if "quantity" not in body:
+        missing.append("quantity")
+    if "unit_price" not in body:
+        missing.append("unit_price")
+    if "new_or_used" not in body:
+        missing.append("new_or_used")
+
+    if missing:
+        prefix = f"Inventory[{index}] missing required fields: " if index is not None else "Inventory missing required fields: "
+        raise SystemExit(prefix + ", ".join(missing))
+
+
+def _add_inventory_common_args(parser: argparse.ArgumentParser, *, include_item: bool) -> None:
+    if include_item:
+        parser.add_argument("--item-type", default=None, help="Item type (PART, SET, MINIFIG, ...)")
+        parser.add_argument("--item-no", default=None, help="Item number (e.g. 3001, 7644-1)")
+    parser.add_argument("--color-id", type=int, default=None)
+    parser.add_argument("--quantity", type=int, default=None)
+    parser.add_argument("--unit-price", default=None)
+    parser.add_argument("--new-or-used", choices=["N", "U"], default=None)
+    parser.add_argument("--completeness", default=None, help="C, B, S, or M (for sets/minifigs)")
+    parser.add_argument("--description", default=None)
+    parser.add_argument("--remarks", default=None)
+    parser.add_argument("--bulk", default=None, choices=["true", "false"])
+    parser.add_argument("--is-retain", default=None, choices=["true", "false"])
+    parser.add_argument("--is-stock-room", default=None, choices=["true", "false"])
+    parser.add_argument("--stock-room-id", type=int, default=None)
+    parser.add_argument("--my-cost", default=None)
+    parser.add_argument("--sale-rate", default=None)
 
 # ------------------------- commands -------------------------
 
@@ -842,6 +923,104 @@ def cmd_get_category(args) -> int:
     return 0
 
 
+def cmd_create_inventory(args) -> int:
+    if not args.yes:
+        raise SystemExit("Refusing to create inventory without --yes")
+
+    creds = load_creds(args)
+    base = (args.base or API_BASE_DEFAULT).rstrip("/")
+
+    body: dict[str, Any] = {}
+    if args.json:
+        body = _load_json_file(args.json)
+        if not isinstance(body, dict):
+            raise SystemExit("--json must contain a JSON object for create-inventory")
+
+    body = _apply_inventory_flags(body, args, include_item=True)
+
+    if not body:
+        raise SystemExit("Inventory body is empty. Provide --json or required flags.")
+    _validate_inventory_required(body)
+
+    url = f"{base}/inventories"
+    data = api_call(creds, "POST", url, body_json=body)
+    print(json.dumps(data, ensure_ascii=False, indent=2))
+    return 0
+
+
+def cmd_create_inventories(args) -> int:
+    if not args.yes:
+        raise SystemExit("Refusing to create inventories without --yes")
+
+    creds = load_creds(args)
+    base = (args.base or API_BASE_DEFAULT).rstrip("/")
+
+    items: list[dict[str, Any]] = []
+    if args.json:
+        payload = _load_json_file(args.json)
+        if not isinstance(payload, list):
+            raise SystemExit("--json must contain a JSON array for create-inventories")
+        items = payload
+
+    if not items:
+        items = [_apply_inventory_flags({}, args, include_item=True)]
+    else:
+        updated: list[dict[str, Any]] = []
+        for entry in items:
+            if not isinstance(entry, dict):
+                raise SystemExit("--json array must contain only objects")
+            updated.append(_apply_inventory_flags(entry, args, include_item=True))
+        items = updated
+
+    if not items:
+        raise SystemExit("Inventory list is empty. Provide --json or required flags.")
+    for idx, entry in enumerate(items):
+        _validate_inventory_required(entry, index=idx)
+
+    url = f"{base}/inventories"
+    data = api_call(creds, "POST", url, body_json=items)
+    print(json.dumps(data, ensure_ascii=False, indent=2))
+    return 0
+
+
+def cmd_update_inventory(args) -> int:
+    if not args.yes:
+        raise SystemExit("Refusing to update inventory without --yes")
+
+    creds = load_creds(args)
+    base = (args.base or API_BASE_DEFAULT).rstrip("/")
+
+    body: dict[str, Any] = {}
+    if args.json:
+        body = _load_json_file(args.json)
+        if not isinstance(body, dict):
+            raise SystemExit("--json must contain a JSON object for update-inventory")
+
+    body = _apply_inventory_flags(body, args, include_item=False)
+
+    if not body:
+        raise SystemExit("Inventory update body is empty. Provide --json or flags.")
+
+    inv_id = int(args.inventory_id)
+    url = f"{base}/inventories/{inv_id}"
+    data = api_call(creds, "PUT", url, body_json=body)
+    print(json.dumps(data, ensure_ascii=False, indent=2))
+    return 0
+
+
+def cmd_delete_inventory(args) -> int:
+    if not args.yes:
+        raise SystemExit("Refusing to delete inventory without --yes")
+
+    creds = load_creds(args)
+    base = (args.base or API_BASE_DEFAULT).rstrip("/")
+    inv_id = int(args.inventory_id)
+    url = f"{base}/inventories/{inv_id}"
+    data = api_call(creds, "DELETE", url)
+    print(json.dumps(data, ensure_ascii=False, indent=2))
+    return 0
+
+
 def cmd_update_order(args) -> int:
     if not args.yes:
         raise SystemExit("Refusing to modify an order without --yes")
@@ -1097,6 +1276,30 @@ def main() -> int:
     p.add_argument("category_id", type=int)
     p.set_defaults(func=cmd_get_category)
 
+    p = sub.add_parser("create-inventory", help="POST /inventories (single resource)")
+    p.add_argument("--yes", action="store_true", help="Actually create the inventory item")
+    p.add_argument("--json", default=None, help="Path to JSON body (inventory resource)")
+    _add_inventory_common_args(p, include_item=True)
+    p.set_defaults(func=cmd_create_inventory)
+
+    p = sub.add_parser("create-inventories", help="POST /inventories (array of resources)")
+    p.add_argument("--yes", action="store_true", help="Actually create the inventory items")
+    p.add_argument("--json", default=None, help="Path to JSON body (array of inventory resources)")
+    _add_inventory_common_args(p, include_item=True)
+    p.set_defaults(func=cmd_create_inventories)
+
+    p = sub.add_parser("update-inventory", help="PUT /inventories/{inventory_id}")
+    p.add_argument("inventory_id", type=int)
+    p.add_argument("--yes", action="store_true", help="Actually update the inventory item")
+    p.add_argument("--json", default=None, help="Path to JSON body (inventory resource fragment)")
+    _add_inventory_common_args(p, include_item=False)
+    p.set_defaults(func=cmd_update_inventory)
+
+    p = sub.add_parser("delete-inventory", help="DELETE /inventories/{inventory_id}")
+    p.add_argument("inventory_id", type=int)
+    p.add_argument("--yes", action="store_true", help="Actually delete the inventory item")
+    p.set_defaults(func=cmd_delete_inventory)
+
     p = sub.add_parser("update-order", help="PUT /orders/{order_id} (update tracking, remarks, costs, filed)")
     p.add_argument("order_id", type=int)
     p.add_argument("--yes", action="store_true", help="Actually perform the update")
@@ -1161,6 +1364,9 @@ def main() -> int:
     if hasattr(args, "is_filed") and isinstance(args.is_filed, str):
         args.is_filed = True if args.is_filed.lower() == "true" else False
     for k in ("box", "instruction", "break_minifigs", "break_subsets"):
+        if hasattr(args, k) and isinstance(getattr(args, k), str):
+            setattr(args, k, True if getattr(args, k).lower() == "true" else False)
+    for k in ("bulk", "is_retain", "is_stock_room"):
         if hasattr(args, k) and isinstance(getattr(args, k), str):
             setattr(args, k, True if getattr(args, k).lower() == "true" else False)
 

@@ -30,3 +30,4 @@ python3 scripts/bricklink.py --config ~/clawd/bricklink/config.json get-price-gu
 ## Notes
 - Reference docs in `references/`
 - `SKILL.md` contains agent usage guidance
+- Mutating commands (POST/PUT/DELETE) require `--yes` and are intentionally omitted from examples
