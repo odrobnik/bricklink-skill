@@ -30,3 +30,4 @@ See [SKILL.md](SKILL.md) for full documentation and all commands.
 
 - **GitHub**: https://github.com/odrobnik/bricklink-skill
 - **ClawHub**: https://www.clawhub.com/skills/bricklink
+- **OpenClaw**: https://openclaw.ai
