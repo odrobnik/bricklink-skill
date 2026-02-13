@@ -2,7 +2,7 @@
 name: bricklink
 description: "BrickLink Store API helper/CLI (OAuth 1.0 request signing). Covers orders, store inventory (read + write), catalog, categories, colors, feedback, and push notifications."
 summary: "BrickLink Store API CLI: orders, inventory, catalog, pricing, feedback."
-version: 1.3.3
+version: 1.4.0
 homepage: https://github.com/odrobnik/bricklink-skill
 metadata:
   openclaw:
