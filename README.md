@@ -26,8 +26,8 @@ python3 scripts/bricklink.py get-price-guide PART 3001 --color-id 11
 
 See [SKILL.md](SKILL.md) for full documentation and all commands.
 
-## Links
+## Documentation
 
-- **GitHub**: https://github.com/odrobnik/bricklink-skill
-- **ClawHub**: https://www.clawhub.com/skills/bricklink
-- **OpenClaw**: https://openclaw.ai
+- [SKILL.md](SKILL.md) — agent-facing reference (commands, behavior, limitations)
+- [SETUP.md](SETUP.md) — prerequisites, configuration, and setup instructions
+- [ClawHub](https://www.clawhub.com/skills/bricklink) — install via ClawHub registry
