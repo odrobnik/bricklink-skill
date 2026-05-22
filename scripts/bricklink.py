@@ -322,6 +322,44 @@ def _fetch_data_uri(url: str) -> str | None:
         return None
 
 
+def _invoice_template_css() -> str:
+    """Extract CSS from workspace/bricklink/invoice-template.html, falling back to built-in styles."""
+    template_path = _find_workspace_root() / "bricklink" / "invoice-template.html"
+    fallback = """
+        body { font-family: -apple-system, BlinkMacSystemFont, \"Segoe UI\", Roboto, \"Helvetica Neue\", Arial, sans-serif; line-height: 1.4; color: #333; background: #f5f5f5; padding: 20px; }
+        .invoice { max-width: 800px; margin: 0 auto; background: white; padding: 40px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); border-radius: 8px; }
+        .header { display: flex; justify-content: space-between; align-items: start; margin-bottom: 30px; padding-bottom: 20px; border-bottom: 3px solid #2563eb; }
+        .store-info h1 { font-size: 26px; color: #2563eb; margin-bottom: 4px; }
+        .store-info p, .invoice-info p, .footer, .part-number, .thank-you p, .address-block p { color: #666; }
+        .invoice-info { text-align: right; }
+        .order-number { font-weight: 600; color: #2563eb; }
+        .addresses { display: grid; grid-template-columns: 1fr 1fr; gap: 30px; margin-bottom: 30px; }
+        .address-block h3, .items-table th { font-size: 11px; text-transform: uppercase; letter-spacing: 0.4px; color: #999; }
+        .items-table { width: 100%; margin-bottom: 25px; border-collapse: collapse; }
+        .items-table th, .items-table td { padding: 8px; border-bottom: 1px solid #e5e7eb; }
+        .items-table th.right, .items-table td.right, .totals td:last-child { text-align: right; }
+        .condition { display: inline-block; padding: 2px 8px; background: #dbeafe; color: #1e40af; border-radius: 4px; font-size: 11px; font-weight: 600; }
+        .totals { margin-left: auto; width: 300px; }
+        .totals table { width: 100%; border-collapse: collapse; }
+        .totals td { padding: 8px 0; border-bottom: 1px solid #e5e7eb; }
+        .totals .total-row { font-size: 18px; color: #2563eb; border-top: 2px solid #2563eb; border-bottom: 2px solid #2563eb; }
+        .totals .total-row td { padding: 12px 0; }
+        .thank-you { margin-top: 30px; padding: 20px; background: #f0f9ff; border-left: 4px solid #2563eb; border-radius: 4px; }
+        .footer { margin-top: 25px; padding-top: 20px; border-top: 1px solid #e5e7eb; text-align: center; font-size: 11px; }
+        @page { size: A4; margin: 15mm; }
+    """
+
+    try:
+        raw = template_path.read_text(encoding="utf-8")
+        start = raw.index("<style>") + len("<style>")
+        end = raw.index("</style>", start)
+        css = raw[start:end].strip()
+        return css or fallback
+    except Exception:
+        return fallback
+
+
+
 def render_order_detail_html(order: dict, batches: list[list[dict]], inline_images: bool = False) -> str:
     """Render a compact HTML view similar to orderDetail.asp.html.
 
@@ -472,6 +510,162 @@ td.qty {{ width: 60px; }}
       {''.join(rows) if rows else '<tr><td colspan=5 class="muted">(no items)</td></tr>'}
     </tbody>
   </table>
+</body></html>"""
+
+
+
+def render_order_invoice_html(order: dict, batches: list[list[dict]]) -> str:
+    """Render a printable invoice using the workspace template's CSS style."""
+    oid = order.get("order_id")
+    status = order.get("status")
+    seller = order.get("seller_name")
+    store = order.get("store_name")
+    buyer_email = order.get("buyer_email")
+    date_ordered = order.get("date_ordered")
+    payment = order.get("payment") if isinstance(order.get("payment"), dict) else {}
+    cost = order.get("disp_cost") if isinstance(order.get("disp_cost"), dict) else (order.get("cost") if isinstance(order.get("cost"), dict) else {})
+    shipping = order.get("shipping") if isinstance(order.get("shipping"), dict) else {}
+    ship_addr = shipping.get("address") if isinstance(shipping.get("address"), dict) else {}
+    ship_name = ship_addr.get("name") if isinstance(ship_addr.get("name"), dict) else {}
+
+    buyer_full_name = ship_name.get("full") or order.get("buyer_name") or ""
+    buyer_first_name = ship_name.get("first") or buyer_full_name
+    buyer_phone = ship_addr.get("phone_number")
+    shipping_method = shipping.get("method") or ""
+    currency = cost.get("currency_code") or payment.get("currency_code") or ""
+    payment_status = payment.get("status") or ""
+    payment_method = payment.get("method") or ""
+    total_weight = order.get("total_weight")
+
+    def _fmt_date(s: Any) -> str:
+        if not s:
+            return ""
+        try:
+            dt = _dt.datetime.fromisoformat(str(s).replace("Z", "+00:00"))
+            return dt.strftime("%B %-d, %Y")
+        except Exception:
+            return str(s)
+
+    def _fmt_money(v: Any) -> str:
+        try:
+            n = float(v)
+            symbol = "€" if str(currency).upper() == "EUR" else (str(currency) + " ")
+            return f"{symbol}{n:.2f}"
+        except Exception:
+            return _html_escape(v)
+
+    flat_items: list[dict] = []
+    for b in batches:
+        if isinstance(b, list):
+            flat_items.extend([it for it in b if isinstance(it, dict)])
+
+    rows = []
+    for it in flat_items:
+        item = it.get("item") if isinstance(it.get("item"), dict) else {}
+        item_name = item.get("name") or ""
+        item_no = item.get("no") or ""
+        item_type = item.get("type") or ""
+        color_name = it.get("color_name") or ""
+        condition = "NEW" if str(it.get("new_or_used") or "").upper() == "N" else "USED"
+        desc = it.get("description") or it.get("remarks") or ""
+        qty = it.get("quantity") or 0
+        unit_price = it.get("disp_unit_price_final") or it.get("disp_unit_price") or it.get("unit_price_final") or it.get("unit_price") or 0
+        try:
+            line_total = float(qty) * float(unit_price)
+        except Exception:
+            line_total = unit_price
+
+        rows.append(
+            "<tr>"
+            "<td>"
+            f"<strong>{_html_escape(item_name)}</strong>"
+            f"<span class='part-number'>{_html_escape(item_type)} #{_html_escape(item_no)} · {_html_escape(color_name)}</span>"
+            f"{f'<div style=\"margin-top:4px;color:#666;font-size:12px;\">{_html_escape(desc)}</div>' if desc else ''}"
+            "</td>"
+            f"<td><span class='condition'>{condition}</span></td>"
+            f"<td class='right'>{_html_escape(qty)}</td>"
+            f"<td class='right'>{_fmt_money(unit_price)}</td>"
+            f"<td class='right'>{_fmt_money(line_total)}</td>"
+            "</tr>"
+        )
+
+    city_parts = [ship_addr.get("postal_code"), ship_addr.get("city")]
+    state = ship_addr.get("state")
+    country = ship_addr.get("country_code")
+    status_color = "#16a34a" if str(payment_status).lower() == "received" else "#d97706"
+    css = _invoice_template_css()
+
+    return f"""<!doctype html>
+<html><head><meta charset='utf-8'>
+<title>Invoice #{_html_escape(oid)} - {_html_escape(store)}</title>
+<style>
+{css}
+</style>
+</head>
+<body>
+  <div class='invoice'>
+    <div class='header'>
+      <div class='store-info'>
+        <h1>{_html_escape(store)}</h1>
+        <p>BrickLink Store by {_html_escape(seller)}</p>
+      </div>
+      <div class='invoice-info'>
+        <h2>INVOICE</h2>
+        <p>Order: <span class='order-number'>#{_html_escape(oid)}</span></p>
+        <p>Date: {_html_escape(_fmt_date(date_ordered))}</p>
+        <p>Status: <strong style='color: {status_color};'>{_html_escape(status)}</strong></p>
+      </div>
+    </div>
+
+    <div class='addresses'>
+      <div class='address-block'>
+        <h3>Bill To</h3>
+        <p><strong>{_html_escape(buyer_full_name)}</strong></p>
+        <p>{_html_escape(ship_addr.get('address1'))}</p>
+        {f"<p>{_html_escape(ship_addr.get('address2'))}</p>" if ship_addr.get('address2') else ''}
+        <p>{_html_escape(' '.join([str(x) for x in city_parts if x]))}{', ' + _html_escape(state) if state else ''}</p>
+        <p>{_html_escape(country)}</p>
+        <p style='margin-top: 8px;'>📧 {_html_escape(buyer_email)}</p>
+        <p>📞 {_html_escape(buyer_phone)}</p>
+      </div>
+
+      <div class='address-block'>
+        <h3>Shipping Method</h3>
+        <p><strong>{_html_escape(shipping_method)}</strong></p>
+        <p style='margin-top: 16px;'>Package Weight: {_html_escape(total_weight)} g</p>
+        <p style='margin-top: 16px; color: #16a34a;'><strong>✓ Payment {_html_escape(payment_status)}</strong></p>
+        <p style='color: #666;'>{_html_escape(payment_method)}</p>
+      </div>
+    </div>
+
+    <table class='items-table'>
+      <thead>
+        <tr><th>Item</th><th>Condition</th><th class='right'>Qty</th><th class='right'>Unit Price</th><th class='right'>Total</th></tr>
+      </thead>
+      <tbody>
+        {''.join(rows) if rows else '<tr><td colspan="5">(no items)</td></tr>'}
+      </tbody>
+    </table>
+
+    <div class='totals'>
+      <table>
+        <tr><td>Subtotal</td><td>{_fmt_money(cost.get('subtotal'))}</td></tr>
+        <tr><td>Shipping</td><td>{_fmt_money(cost.get('shipping'))}</td></tr>
+        <tr><td>Handling Fee</td><td>{_fmt_money(cost.get('etc1'))}</td></tr>
+        <tr class='total-row'><td>TOTAL</td><td>{_fmt_money(cost.get('final_total'))}</td></tr>
+      </table>
+    </div>
+
+    <div class='thank-you'>
+      <h3>Thank You for Your Order!</h3>
+      <p>Dear {_html_escape(buyer_first_name)}, thank you for your purchase from {_html_escape(store)}! Your order has been carefully prepared and is ready to ship. If you have any questions, please feel free to reach out. Happy building! 🧱</p>
+    </div>
+
+    <div class='footer'>
+      <p>{_html_escape(store)} · BrickLink Store by {_html_escape(seller)}</p>
+      <p style='margin-top: 4px;'>Invoice generated on {_html_escape(_fmt_date(order.get('date_status_changed') or date_ordered))}</p>
+    </div>
+  </div>
 </body></html>"""
 
 
@@ -1084,7 +1278,7 @@ def cmd_send_drive_thru(args) -> int:
     return 0
 
 
-def cmd_order_detail_html(args) -> int:
+def _fetch_order_and_batches(args) -> tuple[dict, list[list[dict]]]:
     creds = load_creds(args)
     base = API_BASE_DEFAULT
 
@@ -1097,17 +1291,40 @@ def cmd_order_detail_html(args) -> int:
     if not isinstance(order_data, dict) or not isinstance(batches, list):
         raise SystemExit("Unexpected API response shape")
 
-    # batches is list[list[item]]
     norm_batches: list[list[dict]] = []
     for b in batches:
         if isinstance(b, list):
             norm_batches.append([it for it in b if isinstance(it, dict)])
+    return order_data, norm_batches
 
+
+
+def cmd_order_detail_html(args) -> int:
+    oid = int(args.order_id)
+    order_data, norm_batches = _fetch_order_and_batches(args)
     html = render_order_detail_html(order_data, norm_batches, inline_images=bool(getattr(args, "inline_images", False)))
 
     from _pathguard import safe_output_path
 
     raw_out = args.out or f"/tmp/bricklink_order_{oid}_detail.html"
+    out_path = str(safe_output_path(raw_out))
+
+    with open(out_path, "w", encoding="utf-8") as f:
+        f.write(html)
+
+    print(out_path)
+    return 0
+
+
+
+def cmd_order_invoice_html(args) -> int:
+    oid = int(args.order_id)
+    order_data, norm_batches = _fetch_order_and_batches(args)
+    html = render_order_invoice_html(order_data, norm_batches)
+
+    from _pathguard import safe_output_path
+
+    raw_out = args.out or f"/tmp/bricklink_order_{oid}_invoice.html"
     out_path = str(safe_output_path(raw_out))
 
     with open(out_path, "w", encoding="utf-8") as f:
@@ -1296,6 +1513,11 @@ def main() -> int:
     p.add_argument("--out", default=None, help="Output HTML path (default: /tmp/bricklink_order_<id>_detail.html)")
     p.add_argument("--inline-images", action="store_true", help="Embed images as data: URIs (for sandboxed viewers)")
     p.set_defaults(func=cmd_order_detail_html)
+
+    p = sub.add_parser("order-invoice-html", help="Fetch order + items and render a printable invoice HTML using workspace invoice styling")
+    p.add_argument("order_id", type=int)
+    p.add_argument("--out", default=None, help="Output HTML path (default: /tmp/bricklink_order_<id>_invoice.html)")
+    p.set_defaults(func=cmd_order_invoice_html)
 
     args = ap.parse_args()
 

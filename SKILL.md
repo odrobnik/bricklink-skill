@@ -70,3 +70,4 @@ See [SETUP.md](SETUP.md) for prerequisites and setup instructions.
 ### Utilities
 
 - `bricklink.py order-detail-html <order_id> [--out path] [--inline-images]` - Fetches order+items and renders a compact HTML view (similar to BrickLink orderDetail.asp).
+- `bricklink.py order-invoice-html <order_id> [--out path]` - Fetches order+items and renders a printable invoice HTML using the workspace `bricklink/invoice-template.html` styling.

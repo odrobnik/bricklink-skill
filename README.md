@@ -2,6 +2,10 @@
 
 🧱 BrickLink Store API helper/CLI with OAuth 1.0 request signing. Covers orders, store inventory (read + write), catalog, categories, colors, feedback, push notifications, and invoice generation.
 
+Invoice helpers:
+- `python3 scripts/bricklink.py order-detail-html <order_id>`
+- `python3 scripts/bricklink.py order-invoice-html <order_id>`
+
 An [OpenClaw](https://openclaw.ai) skill.
 
 ## Quick Start
